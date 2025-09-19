@@ -12,6 +12,8 @@ using TaleWorlds.ModuleManager;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 using static TaleWorlds.Library.Debug;
+using PEEnhancements;
+using PEEnhancements.Economy;
 
 namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
 {
@@ -190,6 +192,26 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
         {
             base.OnBehaviorInitialize();
             this.AddRemoveMessageHandlers(GameNetwork.NetworkMessageHandlerRegisterer.RegisterMode.Add);
+            if (FeatureFlags.EconomyBarkeepEnabled)
+            {
+                if (GameNetwork.IsClient && TavernUiPromptBehavior.Instance == null)
+                {
+                    Mission.Current?.AddMissionBehavior(new TavernUiPromptBehavior());
+                }
+
+                if (GameNetwork.IsServer)
+                {
+                    if (BarkeepShiftBehavior.Instance == null)
+                    {
+                        Mission.Current?.AddMissionBehavior(new BarkeepShiftBehavior());
+                    }
+
+                    if (BarkeepNetBridgeBehavior.Instance == null)
+                    {
+                        Mission.Current?.AddMissionBehavior(new BarkeepNetBridgeBehavior());
+                    }
+                }
+            }
             if (GameNetwork.IsServer)
             {
                 this.HungerInterval = ConfigManager.GetIntConfig("HungerInterval", 72); // 60 secs
