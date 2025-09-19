@@ -176,6 +176,19 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
             {
                 Mission.Current?.AddMissionBehavior(new PEEnhancements.HuntingDropFilterBehavior());
             }
+            if (PEEnhancements.PropertySystem.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.PropertySystem());
+            }
+            if (PEEnhancements.PropertyMvpBehavior.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.PropertyMvpBehavior());
+            }
+            // Admin/Incidents initialisieren
+            if (PEEnhancements.AdminKulanzBehavior.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.AdminKulanzBehavior());
+            }
         }
 #endif
 
