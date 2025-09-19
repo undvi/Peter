@@ -171,6 +171,11 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
             ReduceHungerLoop();
             StarvingCheckLoop();
             EatingActionLoop();
+            // Sicherstellen, dass der Hunting-Filter im Mission-Stack hängt
+            if (PEEnhancements.HuntingDropFilterBehavior.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.HuntingDropFilterBehavior());
+            }
         }
 #endif
 
