@@ -1,4 +1,5 @@
-﻿using TaleWorlds.Core;
+﻿using PEEnhancements;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
@@ -44,6 +45,20 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
 
             affectedAgent.Health += MedicineHealingAmount;
             if (affectedAgent.Health > affectedAgent.HealthLimit) affectedAgent.Health = affectedAgent.HealthLimit;
+
+            // --- PEEnhancements: Penalty-Heilung via Medic (mit Cooldown) ---
+            // Bedingungen: Feature aktiv, Item passt (oben geprüft), affector ist Spieler
+            if (FeatureFlags.MedicEnabled && affectorAgent?.MissionPeer != null)
+            {
+                var medicPeer = affectorAgent.MissionPeer.GetNetworkPeer();
+                var targetPeer = affectedAgent.MissionPeer?.GetNetworkPeer();
+                if (medicPeer != null && targetPeer != null)
+                {
+                    var medicId = medicPeer.UserName ?? medicPeer.VirtualPlayer?.ToString();
+                    var targetId = targetPeer.UserName ?? targetPeer.VirtualPlayer?.ToString();
+                    MedicBridge.TryHealPenalty(medicId, targetId, out _);
+                }
+            }
         }
 
     }

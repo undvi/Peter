@@ -11,6 +11,8 @@ namespace PEEnhancements
     /// </summary>
     public class DeathPenaltySystem
     {
+        public static DeathPenaltySystem Instance { get; } = new DeathPenaltySystem();
+
         private readonly ConcurrentDictionary<string, DateTime> _penaltyExpirations = new();
 
         /// <summary>
@@ -34,6 +36,8 @@ namespace PEEnhancements
             if (string.IsNullOrEmpty(playerId)) return;
             _penaltyExpirations.TryRemove(playerId, out _);
         }
+
+        public void Clear(string playerId) => ClearPenalty(playerId);
 
         /// <summary>
         /// Determines whether the given player is currently under a death penalty.
