@@ -1,5 +1,6 @@
 ﻿using PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors;
 using PersistentEmpiresLib.SceneScripts.Interfaces;
+using PersistentEmpiresLib.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,7 @@ using TaleWorlds.Localization;
 using TaleWorlds.ModuleManager;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
+using PEEnhancements;
 
 namespace PersistentEmpiresLib.SceneScripts
 {
@@ -183,7 +185,20 @@ namespace PersistentEmpiresLib.SceneScripts
 
             if (GameNetwork.IsServer)
             {
-                this.stockpileMarketComponent.OpenStockpileMarketForPeer(this, userAgent.MissionPeer.GetNetworkPeer());
+                NetworkCommunicator networkPeer = userAgent.MissionPeer?.GetNetworkPeer();
+                if (networkPeer == null)
+                {
+                    userAgent.StopUsingGameObjectMT(false);
+                    return;
+                }
+
+                if (!this.HasPropertyAccess(networkPeer))
+                {
+                    userAgent.StopUsingGameObjectMT(false);
+                    return;
+                }
+
+                this.stockpileMarketComponent.OpenStockpileMarketForPeer(this, networkPeer);
                 userAgent.StopUsingGameObjectMT(true);
             }
         }
@@ -204,6 +219,51 @@ namespace PersistentEmpiresLib.SceneScripts
         public string SerializeStocks()
         {
             return string.Join("|", MarketItems.Select(s => s.Item.StringId + "*" + s.Stock));
+        }
+
+        private bool HasPropertyAccess(NetworkCommunicator networkPeer)
+        {
+            if (PropertyMvpBehavior.Instance == null) return true;
+
+            string propertyId = this.FindPropertyId();
+            if (string.IsNullOrEmpty(propertyId)) return true;
+
+            string playerId = networkPeer.VirtualPlayer?.ToPlayerId();
+            if (string.IsNullOrEmpty(playerId)) return true;
+
+            bool allowed = PropertyMvpBehavior.Instance.IsAllowed(propertyId, playerId);
+            if (!allowed)
+            {
+                InformationComponent.Instance.SendMessage(
+                    new TextObject("You are not allowed to access this property.").ToString(),
+                    new Color(1f, 0f, 0f).ToUnsignedInteger(),
+                    networkPeer);
+            }
+
+            return allowed;
+        }
+
+        private string FindPropertyId()
+        {
+            GameEntity current = base.GameEntity;
+            while (current != null)
+            {
+                foreach (string tag in current.Tags)
+                {
+                    if (tag != null && tag.StartsWith("property:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string id = tag.Substring("property:".Length).Trim();
+                        if (!string.IsNullOrEmpty(id))
+                        {
+                            return id;
+                        }
+                    }
+                }
+
+                current = current.Parent;
+            }
+
+            return string.Empty;
         }
 
         public MissionObject GetMissionObject()
