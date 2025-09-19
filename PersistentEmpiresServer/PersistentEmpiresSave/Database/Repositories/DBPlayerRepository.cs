@@ -1,5 +1,4 @@
 ﻿using Dapper;
-using MySqlConnector;
 using Org.BouncyCastle.Utilities.Collections;
 using PersistentEmpiresLib;
 using PersistentEmpiresLib.Database.DBEntities;
@@ -9,6 +8,7 @@ using PersistentEmpiresSave.Database.Helpers;
 using PersistentEmpiresServer.ServerMissions;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Security.AccessControl;
@@ -24,6 +24,104 @@ namespace PersistentEmpiresSave.Database.Repositories
 {
     public class DBPlayerRepository
     {
+        private const string UpsertPlayerSql = @"INSERT INTO Players (PlayerId, Name, Hunger, Health, Money, Horse, HorseHarness, Equipment_0, Equipment_1, Equipment_2, Equipment_3, Armor_Head, Armor_Body, Armor_Leg, Armor_Gloves, Armor_Cape, PosX, PosY, PosZ, FactionIndex, Class, Ammo_0, Ammo_1, Ammo_2, Ammo_3, WoundedUntil)
+        VALUES (@PlayerId, @Name, @Hunger, @Health, @Money, @Horse, @HorseHarness, @Equipment_0, @Equipment_1, @Equipment_2, @Equipment_3, @Armor_Head, @Armor_Body, @Armor_Leg, @Armor_Gloves, @Armor_Cape, @PosX, @PosY, @PosZ, @FactionIndex, @Class, @Ammo_0, @Ammo_1, @Ammo_2, @Ammo_3, @WoundedUntil)
+        ON DUPLICATE KEY UPDATE
+        Name = VALUES(Name),
+        Hunger = VALUES(Hunger),
+        Health = VALUES(Health),
+        Money = VALUES(Money),
+        Horse = VALUES(Horse),
+        HorseHarness = VALUES(HorseHarness),
+        Equipment_0 = VALUES(Equipment_0),
+        Equipment_1 = VALUES(Equipment_1),
+        Equipment_2 = VALUES(Equipment_2),
+        Equipment_3 = VALUES(Equipment_3),
+        Armor_Head = VALUES(Armor_Head),
+        Armor_Body = VALUES(Armor_Body),
+        Armor_Leg = VALUES(Armor_Leg),
+        Armor_Gloves = VALUES(Armor_Gloves),
+        Armor_Cape = VALUES(Armor_Cape),
+        PosX = VALUES(PosX),
+        PosY = VALUES(PosY),
+        PosZ = VALUES(PosZ),
+        FactionIndex = VALUES(FactionIndex),
+        Class = VALUES(Class),
+        Ammo_0 = VALUES(Ammo_0),
+        Ammo_1 = VALUES(Ammo_1),
+        Ammo_2 = VALUES(Ammo_2),
+        Ammo_3 = VALUES(Ammo_3),
+        WoundedUntil = VALUES(WoundedUntil)";
+
+        private static object CreatePlayerParameters(DBPlayer dbPlayer)
+        {
+            return new
+            {
+                dbPlayer.PlayerId,
+                dbPlayer.Name,
+                dbPlayer.Hunger,
+                dbPlayer.Health,
+                dbPlayer.Money,
+                Horse = NormalizeNullableString(dbPlayer.Horse),
+                HorseHarness = NormalizeNullableString(dbPlayer.HorseHarness),
+                Equipment_0 = NormalizeNullableString(dbPlayer.Equipment_0),
+                Equipment_1 = NormalizeNullableString(dbPlayer.Equipment_1),
+                Equipment_2 = NormalizeNullableString(dbPlayer.Equipment_2),
+                Equipment_3 = NormalizeNullableString(dbPlayer.Equipment_3),
+                Armor_Head = NormalizeNullableString(dbPlayer.Armor_Head),
+                Armor_Body = NormalizeNullableString(dbPlayer.Armor_Body),
+                Armor_Leg = NormalizeNullableString(dbPlayer.Armor_Leg),
+                Armor_Gloves = NormalizeNullableString(dbPlayer.Armor_Gloves),
+                Armor_Cape = NormalizeNullableString(dbPlayer.Armor_Cape),
+                dbPlayer.PosX,
+                dbPlayer.PosY,
+                dbPlayer.PosZ,
+                dbPlayer.FactionIndex,
+                dbPlayer.Class,
+                dbPlayer.Ammo_0,
+                dbPlayer.Ammo_1,
+                dbPlayer.Ammo_2,
+                dbPlayer.Ammo_3,
+                dbPlayer.WoundedUntil
+            };
+        }
+
+        private static string BuildPlayerSnapshotForLog(DBPlayer dbPlayer)
+        {
+            string FormatString(string value)
+            {
+                value = NormalizeNullableString(value);
+                return value == null ? "NULL" : $"'{value.EncodeSpecialMariaDbChars()}'";
+            }
+            string FormatFloat(float value) => value.ToString(CultureInfo.InvariantCulture);
+            string FormatNullableLong(long? value) => value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "NULL";
+
+            return $"({FormatString(dbPlayer.PlayerId)}, {FormatString(dbPlayer.Name)}, {dbPlayer.Hunger}, {dbPlayer.Health}, {dbPlayer.Money}, {FormatString(dbPlayer.Horse)}, {FormatString(dbPlayer.HorseHarness)}, {FormatString(dbPlayer.Equipment_0)}, {FormatString(dbPlayer.Equipment_1)}, {FormatString(dbPlayer.Equipment_2)}, {FormatString(dbPlayer.Equipment_3)}, {FormatString(dbPlayer.Armor_Head)}, {FormatString(dbPlayer.Armor_Body)}, {FormatString(dbPlayer.Armor_Leg)}, {FormatString(dbPlayer.Armor_Gloves)}, {FormatString(dbPlayer.Armor_Cape)}, {FormatFloat(dbPlayer.PosX)}, {FormatFloat(dbPlayer.PosY)}, {FormatFloat(dbPlayer.PosZ)}, {dbPlayer.FactionIndex}, {FormatString(dbPlayer.Class)}, {dbPlayer.Ammo_0}, {dbPlayer.Ammo_1}, {dbPlayer.Ammo_2}, {dbPlayer.Ammo_3}, {FormatNullableLong(dbPlayer.WoundedUntil)})";
+        }
+
+        private static string NormalizeNullableString(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            return string.Equals(value, "null", StringComparison.OrdinalIgnoreCase) ? null : value;
+        }
+
+        private static void PreparePlayerForSave(DBPlayer dbPlayer)
+        {
+            if (dbPlayer == null)
+            {
+                throw new ArgumentNullException(nameof(dbPlayer));
+            }
+
+            if (dbPlayer.FactionIndex == -1)
+            {
+                dbPlayer.FactionIndex = 0;
+            }
+        }
+
         public static void Initialize()
         {
             SaveSystemBehavior.OnCreateOrSavePlayer += UpsertPlayer;
@@ -156,20 +254,12 @@ namespace PersistentEmpiresSave.Database.Repositories
             try
             {
                 Debug.Print($"[Save Module] OnSaveDefaultsForNewPlayer {player.VirtualPlayer?.Id} ITEMS TO DB");
-                string query = @"
-        INSERT INTO Players (PlayerId, Name, Hunger, Health, Money, Horse, HorseHarness, Equipment_0, Equipment_1, Equipment_2, Equipment_3, Armor_Head, Armor_Body, Armor_Leg, Armor_Gloves, Armor_Cape, PosX, PosY, PosZ, FactionIndex, Class, Ammo_0, Ammo_1, Ammo_2, Ammo_3, WoundedUntil)
-        VALUES ";
                 var dbPlayer = CreateDBPlayer(player, equipment);
-                if (dbPlayer.FactionIndex == -1) dbPlayer.FactionIndex = 0;
-                var logQuerry = $"('{dbPlayer.PlayerId.EncodeSpecialMariaDbChars()}', '{dbPlayer.Name.EncodeSpecialMariaDbChars()}', {dbPlayer.Hunger}, {dbPlayer.Health}, {dbPlayer.Money}, '{(string.IsNullOrEmpty(dbPlayer.Horse) ? "null" : dbPlayer.Horse)}', '{(string.IsNullOrEmpty(dbPlayer.HorseHarness) ? "null" : dbPlayer.HorseHarness)}', '{dbPlayer.Equipment_0}', '{dbPlayer.Equipment_1}', '{dbPlayer.Equipment_2}', '{dbPlayer.Equipment_3}', '{dbPlayer.Armor_Head}', '{dbPlayer.Armor_Body}', '{dbPlayer.Armor_Leg}', '{dbPlayer.Armor_Gloves}', '{dbPlayer.Armor_Cape}', {dbPlayer.PosX}, {dbPlayer.PosY}, {dbPlayer.PosZ}, {dbPlayer.FactionIndex}, '{dbPlayer.Class}', {dbPlayer.Ammo_0}, {dbPlayer.Ammo_1}, {dbPlayer.Ammo_2}, {dbPlayer.Ammo_3}, {(dbPlayer.WoundedUntil.HasValue ? dbPlayer.WoundedUntil.Value.ToString() : "NULL")}),";
-                query += logQuerry;
-                // remove last ","
-                query = query.TrimEnd(',');
-                query += @" 
-        ON DUPLICATE KEY UPDATE
-        Name = VALUES(Name), Hunger = VALUES(Hunger), Health = VALUES(Health), Money = VALUES(Money), Horse = VALUES(Horse), HorseHarness = VALUES(HorseHarness), Equipment_0 = VALUES(Equipment_0), Equipment_1 = VALUES(Equipment_1), Equipment_2 = VALUES(Equipment_2), Equipment_3 = VALUES(Equipment_3), Armor_Head = VALUES(Armor_Head), Armor_Body = VALUES(Armor_Body), Armor_Leg = VALUES(Armor_Leg), Armor_Gloves = VALUES(Armor_Gloves), Armor_Cape = VALUES(Armor_Cape), PosX = VALUES(PosX), PosY = VALUES(PosY), PosZ = VALUES(PosZ), FactionIndex = VALUES(FactionIndex), Class = VALUES(Class), Ammo_0 = VALUES(Ammo_0), Ammo_1 = VALUES(Ammo_1), Ammo_2 = VALUES(Ammo_2), Ammo_3 = VALUES(Ammo_3), WoundedUntil = VALUES(WoundedUntil)";
-                DBConnection.Connection.Execute(query);
-                LoggerHelper.LogAnAction(player, LogAction.OnSaveDefaultsForNewPlayer, null, new object[] { logQuerry });
+                DBPlayer savedPlayer = UpsertPlayer(dbPlayer);
+                if (savedPlayer != null)
+                {
+                    LoggerHelper.LogAnAction(player, LogAction.OnSaveDefaultsForNewPlayer, null, new object[] { BuildPlayerSnapshotForLog(savedPlayer) });
+                }
             }
             catch (Exception ex)
             {
@@ -258,16 +348,8 @@ namespace PersistentEmpiresSave.Database.Repositories
             try
             {
                 Debug.Print($"[Save Module] INSERT/UPDATE PLAYER {dbPlayer.Id} ITEMS TO DB");
-                string query = @"
-        INSERT INTO Players (PlayerId, Name, Hunger, Health, Money, Horse, HorseHarness, Equipment_0, Equipment_1, Equipment_2, Equipment_3, Armor_Head, Armor_Body, Armor_Leg, Armor_Gloves, Armor_Cape, PosX, PosY, PosZ, FactionIndex, Class, Ammo_0, Ammo_1, Ammo_2, Ammo_3, WoundedUntil)
-        VALUES ";
-                if (dbPlayer.FactionIndex == -1) dbPlayer.FactionIndex = 0;
-                query += $"('{dbPlayer.PlayerId.EncodeSpecialMariaDbChars()}', '{dbPlayer.Name.EncodeSpecialMariaDbChars()}', {dbPlayer.Hunger}, {dbPlayer.Health}, {dbPlayer.Money}, '{(string.IsNullOrEmpty(dbPlayer.Horse) ? "null" : dbPlayer.Horse)}', '{(string.IsNullOrEmpty(dbPlayer.HorseHarness) ? "null" : dbPlayer.HorseHarness)}', '{dbPlayer.Equipment_0}', '{dbPlayer.Equipment_1}', '{dbPlayer.Equipment_2}', '{dbPlayer.Equipment_3}', '{dbPlayer.Armor_Head}', '{dbPlayer.Armor_Body}', '{dbPlayer.Armor_Leg}', '{dbPlayer.Armor_Gloves}', '{dbPlayer.Armor_Cape}', {dbPlayer.PosX}, {dbPlayer.PosY}, {dbPlayer.PosZ}, {dbPlayer.FactionIndex}, '{dbPlayer.Class}', {dbPlayer.Ammo_0}, {dbPlayer.Ammo_1}, {dbPlayer.Ammo_2}, {dbPlayer.Ammo_3}, {(dbPlayer.WoundedUntil.HasValue ? dbPlayer.WoundedUntil.Value.ToString() : "NULL")}),";
-                query = query.TrimEnd(',');
-                query += @" 
-        ON DUPLICATE KEY UPDATE
-        Name = VALUES(Name), Hunger = VALUES(Hunger), Health = VALUES(Health), Money = VALUES(Money), Horse = VALUES(Horse), HorseHarness = VALUES(HorseHarness), Equipment_0 = VALUES(Equipment_0), Equipment_1 = VALUES(Equipment_1), Equipment_2 = VALUES(Equipment_2), Equipment_3 = VALUES(Equipment_3), Armor_Head = VALUES(Armor_Head), Armor_Body = VALUES(Armor_Body), Armor_Leg = VALUES(Armor_Leg), Armor_Gloves = VALUES(Armor_Gloves), Armor_Cape = VALUES(Armor_Cape), PosX = VALUES(PosX), PosY = VALUES(PosY), PosZ = VALUES(PosZ), FactionIndex = VALUES(FactionIndex), Class = VALUES(Class), Ammo_0 = VALUES(Ammo_0), Ammo_1 = VALUES(Ammo_1), Ammo_2 = VALUES(Ammo_2), Ammo_3 = VALUES(Ammo_3), WoundedUntil = VALUES(WoundedUntil)";
-                DBConnection.Connection.Execute(query);
+                PreparePlayerForSave(dbPlayer);
+                DBConnection.Connection.Execute(UpsertPlayerSql, CreatePlayerParameters(dbPlayer));
 
                 return dbPlayer;
             }
@@ -287,7 +369,7 @@ namespace PersistentEmpiresSave.Database.Repositories
             DBPlayer dbPlayer = new DBPlayer
             {
                 PlayerId = peer.VirtualPlayer.ToPlayerId(),
-                Name = peer.VirtualPlayer.UserName.EncodeSpecialMariaDbChars(),
+                Name = peer.VirtualPlayer.UserName,
                 Hunger = persistentEmpireRepresentative?.GetHunger() ?? 10,
                 FactionIndex = persistentEmpireRepresentative?.GetFactionIndex() ?? 0,
                 Health = (int)(peer.ControlledAgent?.Health ?? 100),
@@ -386,7 +468,7 @@ namespace PersistentEmpiresSave.Database.Repositories
             DBPlayer dbPlayer = new DBPlayer
             {
                 PlayerId = peer.VirtualPlayer.ToPlayerId(),
-                Name = peer.VirtualPlayer.UserName.EncodeSpecialMariaDbChars(),
+                Name = peer.VirtualPlayer.UserName,
                 Hunger = persistentEmpireRepresentative?.GetHunger() ?? 10,
                 FactionIndex = persistentEmpireRepresentative?.GetFactionIndex() ?? 0,
                 Health = (int)(peer.ControlledAgent?.Health ?? 100),
@@ -553,22 +635,13 @@ namespace PersistentEmpiresSave.Database.Repositories
             try
             {
                 Debug.Print($"[Save Module] INSERT/UPDATE PLAYER {player.VirtualPlayer?.Id} ITEMS TO DB");
-                string query = @"
-        INSERT INTO Players (PlayerId, Name, Hunger, Health, Money, Horse, HorseHarness, Equipment_0, Equipment_1, Equipment_2, Equipment_3, Armor_Head, Armor_Body, Armor_Leg, Armor_Gloves, Armor_Cape, PosX, PosY, PosZ, FactionIndex, Class, Ammo_0, Ammo_1, Ammo_2, Ammo_3, WoundedUntil)
-        VALUES ";
                 var dbPlayer = CreateDBPlayer(player);
-                if (dbPlayer.FactionIndex == -1) dbPlayer.FactionIndex = 0;
-
-                var logQuerry = $"('{dbPlayer.PlayerId.EncodeSpecialMariaDbChars()}', '{dbPlayer.Name.EncodeSpecialMariaDbChars()}', {dbPlayer.Hunger}, {dbPlayer.Health}, {dbPlayer.Money}, '{(string.IsNullOrEmpty(dbPlayer.Horse) ? "null" : dbPlayer.Horse)}', '{(string.IsNullOrEmpty(dbPlayer.HorseHarness) ? "null" : dbPlayer.HorseHarness)}', '{dbPlayer.Equipment_0}', '{dbPlayer.Equipment_1}', '{dbPlayer.Equipment_2}', '{dbPlayer.Equipment_3}', '{dbPlayer.Armor_Head}', '{dbPlayer.Armor_Body}', '{dbPlayer.Armor_Leg}', '{dbPlayer.Armor_Gloves}', '{dbPlayer.Armor_Cape}', {dbPlayer.PosX}, {dbPlayer.PosY}, {dbPlayer.PosZ}, {dbPlayer.FactionIndex}, '{dbPlayer.Class}', {dbPlayer.Ammo_0}, {dbPlayer.Ammo_1}, {dbPlayer.Ammo_2}, {dbPlayer.Ammo_3}, {(dbPlayer.WoundedUntil.HasValue ? dbPlayer.WoundedUntil.Value.ToString() : "NULL")}),";
-                query += logQuerry;
-                // remove last ","
-                query = query.TrimEnd(',');
-                query += @" 
-        ON DUPLICATE KEY UPDATE
-        Name = VALUES(Name), Hunger = VALUES(Hunger), Health = VALUES(Health), Money = VALUES(Money), Horse = VALUES(Horse), HorseHarness = VALUES(HorseHarness), Equipment_0 = VALUES(Equipment_0), Equipment_1 = VALUES(Equipment_1), Equipment_2 = VALUES(Equipment_2), Equipment_3 = VALUES(Equipment_3), Armor_Head = VALUES(Armor_Head), Armor_Body = VALUES(Armor_Body), Armor_Leg = VALUES(Armor_Leg), Armor_Gloves = VALUES(Armor_Gloves), Armor_Cape = VALUES(Armor_Cape), PosX = VALUES(PosX), PosY = VALUES(PosY), PosZ = VALUES(PosZ), FactionIndex = VALUES(FactionIndex), Class = VALUES(Class), Ammo_0 = VALUES(Ammo_0), Ammo_1 = VALUES(Ammo_1), Ammo_2 = VALUES(Ammo_2), Ammo_3 = VALUES(Ammo_3), WoundedUntil = VALUES(WoundedUntil)";
-                DBConnection.Connection.Execute(query);
-                LoggerHelper.LogAnAction(player, LogAction.UpsertPlayer, null, new object[] { logQuerry });
-                return dbPlayer;
+                DBPlayer savedPlayer = UpsertPlayer(dbPlayer);
+                if (savedPlayer != null)
+                {
+                    LoggerHelper.LogAnAction(player, LogAction.UpsertPlayer, null, new object[] { BuildPlayerSnapshotForLog(savedPlayer) });
+                }
+                return savedPlayer;
             }
             catch (Exception ex)
             {
@@ -583,23 +656,10 @@ namespace PersistentEmpiresSave.Database.Repositories
             try
             {
                 Debug.Print($"[Save Module] INSERT/UPDATE FOR {players.Count()} PLAYER ITEMS TO DB");
-                if (players.Any())
+                foreach (var player in players)
                 {
-                    string query = @"
-        INSERT INTO Players (PlayerId, Name, Hunger, Health, Money, Horse, HorseHarness, Equipment_0, Equipment_1, Equipment_2, Equipment_3, Armor_Head, Armor_Body, Armor_Leg, Armor_Gloves, Armor_Cape, PosX, PosY, PosZ, FactionIndex, Class, Ammo_0, Ammo_1, Ammo_2, Ammo_3, WoundedUntil)
-        VALUES ";
-                    foreach (var player in players)
-                    {
-                        var dbPlayer = CreateDBPlayer(player);
-                        if (dbPlayer.FactionIndex == -1) dbPlayer.FactionIndex = 0;
-                        query += $"('{dbPlayer.PlayerId.EncodeSpecialMariaDbChars()}', '{dbPlayer.Name.EncodeSpecialMariaDbChars()}', {dbPlayer.Hunger}, {dbPlayer.Health}, {dbPlayer.Money}, '{(string.IsNullOrEmpty(dbPlayer.Horse) ? "null" : dbPlayer.Horse)}', '{(string.IsNullOrEmpty(dbPlayer.HorseHarness) ? "null" : dbPlayer.HorseHarness)}', '{dbPlayer.Equipment_0}', '{dbPlayer.Equipment_1}', '{dbPlayer.Equipment_2}', '{dbPlayer.Equipment_3}', '{dbPlayer.Armor_Head}', '{dbPlayer.Armor_Body}', '{dbPlayer.Armor_Leg}', '{dbPlayer.Armor_Gloves}', '{dbPlayer.Armor_Cape}', {dbPlayer.PosX}, {dbPlayer.PosY}, {dbPlayer.PosZ}, {dbPlayer.FactionIndex}, '{dbPlayer.Class}', {dbPlayer.Ammo_0}, {dbPlayer.Ammo_1}, {dbPlayer.Ammo_2}, {dbPlayer.Ammo_3}, {(dbPlayer.WoundedUntil.HasValue ? dbPlayer.WoundedUntil.Value.ToString() : "NULL")}),";
-                    }
-                    // remove last ","
-                    query = query.TrimEnd(',');
-                    query += @" 
-        ON DUPLICATE KEY UPDATE
-        Name = VALUES(Name), Hunger = VALUES(Hunger), Health = VALUES(Health), Money = VALUES(Money), Horse = VALUES(Horse), HorseHarness = VALUES(HorseHarness), Equipment_0 = VALUES(Equipment_0), Equipment_1 = VALUES(Equipment_1), Equipment_2 = VALUES(Equipment_2), Equipment_3 = VALUES(Equipment_3), Armor_Head = VALUES(Armor_Head), Armor_Body = VALUES(Armor_Body), Armor_Leg = VALUES(Armor_Leg), Armor_Gloves = VALUES(Armor_Gloves), Armor_Cape = VALUES(Armor_Cape), PosX = VALUES(PosX), PosY = VALUES(PosY), PosZ = VALUES(PosZ), FactionIndex = VALUES(FactionIndex), Class = VALUES(Class), Ammo_0 = VALUES(Ammo_0), Ammo_1 = VALUES(Ammo_1), Ammo_2 = VALUES(Ammo_2), Ammo_3 = VALUES(Ammo_3), WoundedUntil = VALUES(WoundedUntil)";
-                    DBConnection.Connection.Execute(query);
+                    var dbPlayer = CreateDBPlayer(player);
+                    UpsertPlayer(dbPlayer);
                 }
             }
             catch (Exception ex)
