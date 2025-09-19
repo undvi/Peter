@@ -6,5 +6,13 @@
   "medic": { "enabled": true, "cooldownSeconds": 180 },
   "property": { "enabled": true },
   "hunting": { "onlyHunterBowMeat": true },
-  "economy": { "jobs": { "enabled": false } }
+  "economy": {
+    "jobs": { "enabled": false },
+    "barkeep": {
+      "enabled": false,
+      "payoutGold": 45,
+      "payoutIntervalSeconds": 60,
+      "shiftMinutes": 30
+    }
+  }
 }

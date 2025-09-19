@@ -184,10 +184,25 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
             {
                 Mission.Current?.AddMissionBehavior(new PEEnhancements.PropertyMvpBehavior());
             }
+            if (PEEnhancements.Economy.BarkeepShiftBehavior.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.Economy.BarkeepShiftBehavior());
+            }
             // Admin/Incidents initialisieren
             if (PEEnhancements.AdminKulanzBehavior.Instance == null)
             {
                 Mission.Current?.AddMissionBehavior(new PEEnhancements.AdminKulanzBehavior());
+            }
+        }
+#endif
+
+#if CLIENT
+        public override void OnMissionTick(float dt)
+        {
+            base.OnMissionTick(dt);
+            if (PEEnhancements.Economy.TavernUiPromptBehavior.Instance == null)
+            {
+                Mission.Current?.AddMissionBehavior(new PEEnhancements.Economy.TavernUiPromptBehavior());
             }
         }
 #endif
