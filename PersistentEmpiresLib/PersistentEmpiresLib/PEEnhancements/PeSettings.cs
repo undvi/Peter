@@ -52,9 +52,19 @@ namespace PEEnhancements
         public class EconomySettings
         {
             [JsonPropertyName("jobs")] public JobsSettings Jobs { get; set; } = new();
+            [JsonPropertyName("barkeep")] public BarkeepSettings Barkeep { get; set; } = new();
+
             public class JobsSettings
             {
                 [JsonPropertyName("enabled")] public bool Enabled { get; set; } = false;
+            }
+
+            public class BarkeepSettings
+            {
+                [JsonPropertyName("enabled")] public bool Enabled { get; set; } = false;
+                [JsonPropertyName("payoutGold")] public int PayoutGold { get; set; } = 45;
+                [JsonPropertyName("payoutIntervalSeconds")] public int PayoutIntervalSeconds { get; set; } = 60;
+                [JsonPropertyName("shiftMinutes")] public int ShiftMinutes { get; set; } = 30;
             }
         }
 

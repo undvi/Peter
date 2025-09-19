@@ -31,5 +31,9 @@ namespace PEEnhancements
         public static bool PropertyEnabled => Current.Property.Enabled;
         public static bool HuntingOnlyHunterBowMeat => Current.Hunting.OnlyHunterBowMeat;
         public static bool EconomyJobsEnabled => Current.Economy.Jobs.Enabled;
+        public static bool EconomyBarkeepEnabled => Current.Economy.Barkeep.Enabled;
+        public static int EconomyBarkeepPayoutGold => Current.Economy.Barkeep.PayoutGold;
+        public static int EconomyBarkeepPayoutIntervalSeconds => Current.Economy.Barkeep.PayoutIntervalSeconds;
+        public static int EconomyBarkeepShiftMinutes => Current.Economy.Barkeep.ShiftMinutes;
     }
 }
