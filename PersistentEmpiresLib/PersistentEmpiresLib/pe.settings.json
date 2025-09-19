@@ -1,0 +1,10 @@
+{
+  "death": {
+    "penalty": { "enabled": true, "hours": 10 },
+    "armorBreak": { "enabled": false, "extraChance": 0.35 }
+  },
+  "medic": { "enabled": true, "cooldownSeconds": 180 },
+  "property": { "enabled": true },
+  "hunting": { "onlyHunterBowMeat": true },
+  "economy": { "jobs": { "enabled": false } }
+}
