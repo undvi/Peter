@@ -3,6 +3,7 @@ using PersistentEmpiresLib.Helpers;
 using PersistentEmpiresLib.NetworkMessages.Client;
 using PersistentEmpiresLib.NetworkMessages.Server;
 using PersistentEmpiresLib.SceneScripts;
+using PEEnhancements;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -359,6 +360,11 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
                 .ToList();
         }
 
+        // OPTIONAL Gate (konkret):
+        // Beispiel-Aufruf direkt vor "Open" / "ShowInventory":
+        //   var pid = PropertyStorageGate.TryGetPropertyIdFrom(this.GameEntity);
+        //   if (pid != null && !PropertyStorageGate.Check(pid, networkPeer)) return;
+        // Hinweis: Nutze den tatsächlichen Player-NetworkCommunicator der Open-Operation.
         public void OpenStockpileMarketForPeer(PE_StockpileMarket entity, NetworkCommunicator networkCommunicator)
         {
             PersistentEmpireRepresentative persistentEmpireRepresentative = networkCommunicator.GetComponent<PersistentEmpireRepresentative>();
