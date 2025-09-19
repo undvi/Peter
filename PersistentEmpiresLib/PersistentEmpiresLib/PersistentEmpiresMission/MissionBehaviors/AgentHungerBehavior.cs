@@ -208,6 +208,17 @@ namespace PersistentEmpiresLib.PersistentEmpiresMission.MissionBehaviors
                 this.LoadEatables(module.Id);
             }
 
+#if CLIENT
+            if (Mission.Current != null && Mission.Current.GetMissionBehavior<PEEnhancements.Economy.TavernUiPromptBehavior>() == null)
+            {
+                Mission.Current.AddMissionBehavior(new PEEnhancements.Economy.TavernUiPromptBehavior());
+            }
+#endif
+            if (Mission.Current != null && GameNetwork.IsServer && Mission.Current.GetMissionBehavior<PEEnhancements.Economy.BarkeepNetBridgeBehavior>() == null)
+            {
+                Mission.Current.AddMissionBehavior(new PEEnhancements.Economy.BarkeepNetBridgeBehavior());
+            }
+
         }
 
         public override void OnRemoveBehavior()

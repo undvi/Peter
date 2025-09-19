@@ -4,6 +4,9 @@ using TaleWorlds.MountAndBlade.Network.Messages;
 
 namespace PEEnhancements.Economy.Net
 {
+    /// <summary>
+    /// Client-&gt;Server: Register a tip for a barkeep.
+    /// </summary>
     [DefineGameNetworkMessageTypeForMod(GameNetworkMessageSendType.FromClient)]
     public sealed class MsgTipRegister : GameNetworkMessage
     {
@@ -13,36 +16,36 @@ namespace PEEnhancements.Economy.Net
 
         public MsgTipRegister(string barkeepId, int amount)
         {
-            BarkeepId = barkeepId;
+            BarkeepId = barkeepId ?? string.Empty;
             Amount = amount;
         }
 
-        public string BarkeepId { get; private set; }
+        public string BarkeepId { get; private set; } = string.Empty;
 
         public int Amount { get; private set; }
-
-        protected override MultiplayerMessageFilter OnGetLogFilter()
-        {
-            return MultiplayerMessageFilter.MissionObjects;
-        }
-
-        protected override string OnGetLogFormat()
-        {
-            return "Register tip";
-        }
 
         protected override bool OnRead()
         {
             bool bufferReadValid = true;
-            BarkeepId = GameNetworkMessage.ReadStringFromPacket(ref bufferReadValid);
-            Amount = GameNetworkMessage.ReadIntFromPacket(new CompressionInfo.Integer(0, int.MaxValue, true), ref bufferReadValid);
+            BarkeepId = ReadStringFromPacket(ref bufferReadValid);
+            Amount = ReadIntFromPacket(CompressionBasic.Int32CompressionInfo, ref bufferReadValid);
             return bufferReadValid;
         }
 
         protected override void OnWrite()
         {
-            GameNetworkMessage.WriteStringToPacket(BarkeepId);
-            GameNetworkMessage.WriteIntToPacket(Amount, new CompressionInfo.Integer(0, int.MaxValue, true));
+            WriteStringToPacket(BarkeepId);
+            WriteIntToPacket(Amount, CompressionBasic.Int32CompressionInfo);
+        }
+
+        protected override MultiplayerMessageFilter OnGetLogFilter()
+        {
+            return MultiplayerMessageFilter.Mission;
+        }
+
+        protected override string OnGetLogFormat()
+        {
+            return $"[PE] TipRegister {BarkeepId}:{Amount}";
         }
     }
 }
